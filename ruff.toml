@@ -8,5 +8,3 @@ quote-style = "single"
 indent-style = "space"
 skip-magic-trailing-comma = false
 
-[lint]
-select = ["E", "F", "UP", "B", "SIM", "I"]
