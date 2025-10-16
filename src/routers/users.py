@@ -1,8 +1,10 @@
+import re
 from datetime import datetime
 
 from fastapi import APIRouter, HTTPException
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict, field_validator
 
+from src.constants import Regex
 from src.database import DBSession
 from src.models import User
 
@@ -14,9 +16,50 @@ class UserBase(BaseModel):
     email: str
     phone_number: str | None = None
 
+    @field_validator('email')
+    @classmethod
+    def validate_email(cls, v):
+        if not isinstance(v, str):
+            raise ValueError('Invalid email address')
+
+        v = v.strip()
+        email_regex = re.compile(Regex.EMAIL_REGEX)
+        if not email_regex.match(v):
+            raise ValueError('Invalid email address')
+
+        return v.lower()
+
+    @field_validator('phone_number')
+    @classmethod
+    def validate_phone_number(cls, v):
+        if v is None:
+            return v
+
+        if not isinstance(v, str):
+            raise ValueError('Invalid phone number')
+
+        v = v.strip()
+        phone_regex = re.compile(Regex.PHONE_REGEX)
+        if not phone_regex.match(v):
+            raise ValueError('Invalid phone number format')
+
+        return v
+
 
 class UserCreate(UserBase):
     password: str
+
+    @field_validator('password')
+    @classmethod
+    def validate_password(cls, v):
+        if not isinstance(v, str):
+            raise ValueError('Password must be a string')
+
+        v = v.strip()
+        if len(v) < 6:
+            raise ValueError('Password must be at least 6 characters long')
+
+        return v
 
 
 class UserResponse(UserBase):
