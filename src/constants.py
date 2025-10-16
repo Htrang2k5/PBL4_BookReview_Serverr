@@ -8,6 +8,4 @@ load_dotenv()
 
 @dataclass
 class Settings:
-    SQLALCHEMY_DATABASE_URL: str = os.getenv(
-        'SQLALCHEMY_DATABASE_URL', 'sqlite:///./test.db'
-    )
+    SQLALCHEMY_DATABASE_URL: str = os.getenv('SQLALCHEMY_DATABASE_URL')
