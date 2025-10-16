@@ -10,7 +10,7 @@ router = APIRouter(prefix='/users', tags=['users'])
 
 @router.post('/', response_model=schema.User)
 async def create_user(user: schema.UserCreate, db: DBSession):
-    db_user = User(**user.model_dump())
+    db_user = User(**user.model_dump(exclude_none=True, exclude_unset=True))
     db.add(db_user)
     await db.commit()
     await db.refresh(db_user)

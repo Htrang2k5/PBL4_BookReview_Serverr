@@ -1,5 +1,6 @@
 from __future__ import annotations
-from typing import TYPE_CHECKING
+from cgitb import text
+from typing import TYPE_CHECKING, Optional
 
 from sqlalchemy import DateTime, Integer, String
 from sqlalchemy.orm import Mapped, mapped_column, relationship
@@ -26,8 +27,8 @@ class User(Base):
         primary_key=True,
     )
 
-    email: Mapped[str] = mapped_column(
-        String(100), index=True, unique=True, nullable=False
+    email: Mapped[Optional[str]] = mapped_column(
+        String(100), index=True, nullable=True
     )
     password: Mapped[str] = mapped_column(String(255), nullable=False)
     phone_number: Mapped[str | None] = mapped_column(String(15), nullable=True)
