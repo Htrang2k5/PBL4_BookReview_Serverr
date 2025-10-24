@@ -2,12 +2,15 @@ import enum
 
 from sqlalchemy import (
     Boolean,
+    Column,
     DateTime,
     Enum,
     ForeignKey,
     Integer,
     String,
+    Table,
     Text,
+    UniqueConstraint,
     func,
 )
 from sqlalchemy.orm import DeclarativeBase, mapped_column, relationship
@@ -20,15 +23,13 @@ class Base(DeclarativeBase):
     )
 
 
-class UsersFollowAuthors(Base):
-    __tablename__ = 'users_follow_authors'
-
-    user_id = mapped_column(
-        Integer, ForeignKey('users.id', ondelete='CASCADE'), primary_key=True
-    )
-    author_id = mapped_column(
-        Integer, ForeignKey('authors.id', ondelete='CASCADE'), primary_key=True
-    )
+users_follow_authors = Table(
+    'users_follow_authors',
+    Base.metadata,
+    Column('user_id', ForeignKey('users.id'), primary_key=True),
+    Column('author_id', ForeignKey('authors.id'), primary_key=True),
+    UniqueConstraint('user_id', 'author_id'),
+)
 
 
 class User(Base):
@@ -40,13 +41,54 @@ class User(Base):
     email = mapped_column(String(100), unique=True, nullable=False, index=True)
     password = mapped_column(String(128), nullable=False)
     phone_number = mapped_column(String(16), nullable=True)
+    role = mapped_column(Integer, default=0)
 
     # Relationships
+
+    Author = relationship(
+        'Author',
+        back_populates='profile',
+        cascade='all, delete-orphan',
+        single_parent=True,
+        uselist=False,
+    )
+
     following = relationship(
         'Author',
-        secondary=UsersFollowAuthors,
+        secondary=users_follow_authors,
         back_populates='followers',
+    )
+
+    comments = relationship(
+        'Comment',
+        back_populates='user',
         cascade='all, delete-orphan',
+        single_parent=True,
+    )
+    reactions = relationship(
+        'Reaction',
+        back_populates='user',
+        cascade='all, delete-orphan',
+        single_parent=True,
+    )
+    post_reports = relationship(
+        'PostReport',
+        back_populates='user',
+        cascade='all, delete-orphan',
+        single_parent=True,
+    )
+    notifications = relationship(
+        'Notification',
+        back_populates='recipient',
+        cascade='all, delete-orphan',
+        single_parent=True,
+    )
+
+    notification_recipients = relationship(
+        'NotificationRecipient',
+        back_populates='user',
+        cascade='all, delete-orphan',
+        single_parent=True,
     )
 
 
@@ -57,6 +99,7 @@ class Author(Base):
         Integer, primary_key=True, autoincrement=True, index=True
     )
     pen_name = mapped_column(String(128), unique=True, index=True)
+    bio = mapped_column(Text(255), nullable=True)
 
     # Foreign keys
     user_id = mapped_column(
@@ -68,13 +111,20 @@ class Author(Base):
 
     # Relationships
     profile = relationship(
-        'User', backref='author', uselist=False, cascade='all, delete-orphan'
+        'User',
+        back_populates='Author',
+        single_parent=True,
     )
     followers = relationship(
         'User',
-        secondary=UsersFollowAuthors,
+        secondary=users_follow_authors,
         back_populates='following',
+    )
+    posts = relationship(
+        'Post',
+        back_populates='author',
         cascade='all, delete-orphan',
+        single_parent=True,
     )
 
 
@@ -92,7 +142,7 @@ class Post(Base):
     )
     cover_url = mapped_column(String(256), nullable=True)
     title = mapped_column(String(256), nullable=False)
-    content = mapped_column(Text(1024), nullable=False)
+    content = mapped_column(Text(65000), nullable=False)
     credit = mapped_column(String(256), nullable=True)
     status = mapped_column(
         Enum(RequestStatus), default=RequestStatus.PENDING, nullable=False
@@ -106,16 +156,26 @@ class Post(Base):
 
     # Relationships
     author = relationship(
-        'Author', backref='posts', cascade='all, delete-orphan'
+        'Author',
+        back_populates='posts',
     )
     comments = relationship(
-        'Comment', back_populates='post', cascade='all, delete-orphan'
+        'Comment',
+        back_populates='post',
+        cascade='all, delete-orphan',
+        single_parent=True,
     )
     reactions = relationship(
-        'Reaction', back_populates='post', cascade='all, delete-orphan'
+        'Reaction',
+        back_populates='post',
+        cascade='all, delete-orphan',
+        single_parent=True,
     )
     reports = relationship(
-        'PostReport', back_populates='post', cascade='all, delete-orphan'
+        'PostReport',
+        back_populates='post',
+        cascade='all, delete-orphan',
+        single_parent=True,
     )
 
 
@@ -136,12 +196,8 @@ class Comment(Base):
     )
 
     # Relationships
-    user = relationship(
-        'User', backref='comments', cascade='all, delete-orphan'
-    )
-    post = relationship(
-        'Post', back_populates='comments', cascade='all, delete-orphan'
-    )
+    user = relationship('User', back_populates='comments')
+    post = relationship('Post', back_populates='comments')
 
 
 class ReactionType(enum.Enum):
@@ -166,12 +222,8 @@ class Reaction(Base):
     )
 
     # Relationships
-    user = relationship(
-        'User', backref='reactions', cascade='all, delete-orphan'
-    )
-    post = relationship(
-        'Post', back_populates='reactions', cascade='all, delete-orphan'
-    )
+    user = relationship('User', back_populates='reactions')
+    post = relationship('Post', back_populates='reactions')
 
 
 class PostReport(Base):
@@ -194,12 +246,8 @@ class PostReport(Base):
     )
 
     # Relationships
-    user = relationship(
-        'User', backref='post_reports', cascade='all, delete-orphan'
-    )
-    post = relationship(
-        'Post', back_populates='reports', cascade='all, delete-orphan'
-    )
+    user = relationship('User', back_populates='post_reports')
+    post = relationship('Post', back_populates='reports')
 
 
 class Notification(Base):
@@ -219,8 +267,12 @@ class Notification(Base):
     )
 
     # Relationships
-    recipient = relationship(
-        'User', backref='notifications', cascade='all, delete-orphan'
+    recipient = relationship('User', back_populates='notifications')
+    recipients = relationship(
+        'NotificationRecipient',
+        back_populates='notification',
+        cascade='all, delete-orphan',
+        single_parent=True,
     )
 
 
@@ -241,9 +293,5 @@ class NotificationRecipient(Base):
     is_read = mapped_column(Boolean, default=False, nullable=False)
 
     # Relationships
-    notification = relationship(
-        'Notification', backref='recipients', cascade='all, delete-orphan'
-    )
-    user = relationship(
-        'User', backref='notification_recipients', cascade='all, delete-orphan'
-    )
+    notification = relationship('Notification', back_populates='recipients')
+    user = relationship('User', back_populates='notification_recipients')
