@@ -5,13 +5,12 @@ from pydantic import BaseModel, ConfigDict
 
 from src.database import DBSession
 from src.models import Post
+from src.selenium_pages import web_data
 
 router = APIRouter(prefix='/posts', tags=['Posts'])
 
 
 # Schemas
-
-
 class PostBase(BaseModel):
     cover_url: str | None = None
     credit: str | None = None
@@ -41,13 +40,36 @@ class PostResponse(PostBase):
     model_config = ConfigDict(from_attributes=True)
 
 
+class PostCrawl(PostBase):
+    title: str
+    content: str
+    author_id: int
+    credit: str | None = None
+    created_at: datetime | None = None
+
+
 # CRUD operations
-
-
 def create_post(db: DBSession, payload: PostCreate) -> Post:
     new_post = Post(
         title=payload.title,
         content=payload.content,
+        author_id=payload.author_id,
+    )
+    db.add(new_post)
+    db.commit()
+    db.refresh(new_post)
+    return new_post
+
+
+def create_post_crawl(db: DBSession, payload: PostCrawl) -> Post:
+    post = db.query(Post).filter(Post.title == payload.title).first()
+    if post:
+        return None
+    new_post = Post(
+        title=payload.title,
+        content=payload.content,
+        credit=payload.credit,
+        created_at=payload.created_at,
         author_id=payload.author_id,
     )
     db.add(new_post)
@@ -172,3 +194,22 @@ def delete_post(post_id: int, db: DBSession):
     if not delete_post_by_id(db, post_id):
         raise HTTPException(status_code=404, detail='Post not found')
     return None
+
+
+@router.post(
+    '/crawl',
+    response_model=str,
+    status_code=201,
+)
+def create_post_from_crawl(month: int, db: DBSession):
+    posts = web_data.find_reviews(month)
+    for post in posts:
+        post = PostCrawl(
+            title=post[1],
+            content=post[2],
+            author_id=1,
+            created_at=post[0],
+            credit=post[3],
+        )
+        create_post_crawl(db, post)
+    return 'Posts crawled and created successfully'

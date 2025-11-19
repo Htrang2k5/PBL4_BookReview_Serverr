@@ -175,6 +175,8 @@ def update_user_by_id(
 
 
 def delete_user_by_id(db: DBSession, id: int) -> bool:
+    if id == 3:
+        return False
     db_user = get_user_by_id(db, id)
     if not db_user:
         return False
@@ -211,6 +213,17 @@ def upgrade_user_role_by_id(
     if new_author is not None:
         db.refresh(new_author)
     return db_user
+
+
+def get_user_by_email(db: DBSession, email: str) -> User | None:
+    return db.query(User).filter(User.email == email).first()
+
+
+def check_user_login(db: DBSession, email: str, password: str) -> User | None:
+    user = db.query(User).filter(User.email == email).first()
+    if user and user.password == password:
+        return user
+    return None
 
 
 # Routes
@@ -273,4 +286,31 @@ def upgrade_user_role(
 
     if not db_user:
         raise HTTPException(status_code=404, detail='User not found')
+    return db_user
+
+
+@router.get(
+    '/by_email/',
+    response_model=UserResponse,
+    status_code=200,
+    tags=['Users'],
+)
+def read_user_by_email(email: str, db: DBSession):
+    db_user = get_user_by_email(db, email)
+    if not db_user:
+        raise HTTPException(status_code=404, detail='User not found')
+
+    return db_user
+
+
+@router.post(
+    '/login/',
+    response_model=UserResponse,
+    status_code=200,
+    tags=['Users'],
+)
+def login_user(email: str, password: str, db: DBSession):
+    db_user = check_user_login(db, email, password)
+    if db_user is None:
+        raise HTTPException(status_code=404, detail='Invalid email or password')
     return db_user

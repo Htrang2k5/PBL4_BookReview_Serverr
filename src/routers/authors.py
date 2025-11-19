@@ -111,6 +111,8 @@ def create_author_from_userId(
 
 
 def delete_author(db: DBSession, author_id: int) -> bool:
+    if author_id == 1:
+        return False
     author = db.query(Author).filter(Author.id == author_id).first()
     if not author:
         raise HTTPException(status_code=404, detail='Author not found')
@@ -173,8 +175,9 @@ def create_new_author(author: AuthorCreate, db: DBSession):
 
 @router.delete('/{author_id}', status_code=204, tags=['Authors'])
 def delete_author_by_id(author_id: int, db: DBSession):
-    delete_author(db, author_id)
-    return None
+    if not delete_author(db, author_id):
+        raise HTTPException(status_code=400, detail='Cannot delete this author')
+    return 'Deleted successfully'
 
 
 @router.post(
