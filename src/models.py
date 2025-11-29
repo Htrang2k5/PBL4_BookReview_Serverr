@@ -90,6 +90,12 @@ class User(Base):
         cascade='all, delete-orphan',
         single_parent=True,
     )
+    sessions = relationship(
+        'session',
+        back_populates='user',
+        cascade='all, delete-orphan',
+        single_parent=True,
+    )
 
 
 class Author(Base):
@@ -295,3 +301,19 @@ class NotificationRecipient(Base):
     # Relationships
     notification = relationship('Notification', back_populates='recipients')
     user = relationship('User', back_populates='notification_recipients')
+
+
+class session(Base):
+    __tablename__ = 'sessions'
+
+    id = mapped_column(
+        Integer, primary_key=True, autoincrement=True, index=True
+    )
+    user_id = mapped_column(
+        Integer, ForeignKey('users.id', ondelete='CASCADE'), nullable=False
+    )
+    token = mapped_column(String(256), unique=True, nullable=False)
+    expires_at = mapped_column(DateTime(timezone=True), nullable=False)
+
+    # Relationships
+    user = relationship('User', back_populates='sessions')

@@ -301,16 +301,3 @@ def read_user_by_email(email: str, db: DBSession):
         raise HTTPException(status_code=404, detail='User not found')
 
     return db_user
-
-
-@router.post(
-    '/login/',
-    response_model=UserResponse,
-    status_code=200,
-    tags=['Users'],
-)
-def login_user(email: str, password: str, db: DBSession):
-    db_user = check_user_login(db, email, password)
-    if db_user is None:
-        raise HTTPException(status_code=404, detail='Invalid email or password')
-    return db_user

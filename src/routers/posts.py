@@ -65,17 +65,21 @@ def create_post_crawl(db: DBSession, payload: PostCrawl) -> Post:
     post = db.query(Post).filter(Post.title == payload.title).first()
     if post:
         return None
-    new_post = Post(
-        title=payload.title,
-        content=payload.content,
-        credit=payload.credit,
-        created_at=payload.created_at,
-        author_id=payload.author_id,
-    )
-    db.add(new_post)
-    db.commit()
-    db.refresh(new_post)
-    return new_post
+    try:
+        new_post = Post(
+            title=payload.title,
+            content=payload.content,
+            credit=payload.credit,
+            created_at=payload.created_at,
+            author_id=payload.author_id,
+            cover_url=payload.cover_url,
+        )
+        db.add(new_post)
+        db.commit()
+        db.refresh(new_post)
+        return new_post
+    except Exception:
+        return None
 
 
 def get_post_by_id(db: DBSession, post_id: int) -> Post | None:
@@ -131,6 +135,20 @@ def delete_post_by_id(db: DBSession, post_id: int) -> bool:
     try:
         db.commit()
         return True
+    except Exception:
+        db.rollback()
+        raise
+
+
+def edit_save_path(db: DBSession):
+    try:
+        posts = db.query(Post).all()
+        for post in posts:
+            if post.cover_url:
+                file_name = post.cover_url.split('/')[-1]
+                post.cover_url = '/static/images/' + file_name
+                db.add(post)
+        db.commit()
     except Exception:
         db.rollback()
         raise
@@ -204,12 +222,25 @@ def delete_post(post_id: int, db: DBSession):
 def create_post_from_crawl(month: int, db: DBSession):
     posts = web_data.find_reviews(month)
     for post in posts:
+        if len(post[2]) > 65000:
+            continue
         post = PostCrawl(
             title=post[1],
             content=post[2],
             author_id=1,
             created_at=post[0],
-            credit=post[3],
+            credit=post[4],
+            cover_url=post[3],
         )
         create_post_crawl(db, post)
     return 'Posts crawled and created successfully'
+
+
+@router.post(
+    '/edit-save-path',
+    response_model=str,
+    status_code=200,
+)
+def edit_posts_save_path(db: DBSession):
+    edit_save_path(db)
+    return 'Posts save paths edited successfully'

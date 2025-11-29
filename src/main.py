@@ -4,7 +4,7 @@ from uuid import uuid4
 from fastapi import FastAPI, File, HTTPException, UploadFile
 from fastapi.staticfiles import StaticFiles
 
-from .routers import authors, posts, users
+from .routers import authors, posts, sessions, users
 
 app = FastAPI(title='Book Review API')
 
@@ -23,6 +23,7 @@ async def read_root():
 app.include_router(users.router)
 app.include_router(authors.router)
 app.include_router(posts.router)
+app.include_router(sessions.router)
 
 # mount static files
 app.mount('/static', StaticFiles(directory=STATIC_DIR), name='static')
