@@ -1,7 +1,8 @@
+import os
 import re
 from datetime import datetime
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, File, HTTPException, UploadFile
 from pydantic import BaseModel, ConfigDict, field_validator
 from sqlalchemy.exc import IntegrityError
 
@@ -11,11 +12,33 @@ from src.models import Author, User
 
 router = APIRouter(prefix='/users')
 
+BASE_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..'))
+STATIC_DIR = os.path.join(BASE_DIR, 'static')
+IMAGES_DIR = os.path.join(STATIC_DIR, 'images')
+os.makedirs(IMAGES_DIR, exist_ok=True)
+
+UPLOAD_FILE_PARAM = File(...)
+
 
 # Schemas
 class UserBase(BaseModel):
+    username: str
     email: str
     phone_number: str | None = None
+
+    @field_validator('username')
+    @classmethod
+    def validate_username(cls, v):
+        if not isinstance(v, str):
+            raise ValueError('Invalid username')
+
+        v = v.strip()
+        if len(v) < 3 or len(v) > 50:
+            raise ValueError(
+                'Username must be between 3 and 50 characters long'
+            )
+
+        return v
 
     @field_validator('email')
     @classmethod
@@ -66,6 +89,7 @@ class UserCreate(UserBase):
 class UserResponse(UserBase):
     id: int
     role: int | None = None
+    cover_url: str | None = None
     created_at: datetime
     updated_at: datetime
 
@@ -76,6 +100,7 @@ class UserResponse(UserBase):
 class UserUpdate(UserBase):
     password: str | None = None
     email: str | None = None
+    username: str | None = None
 
     @field_validator('password')
     @classmethod
@@ -108,6 +133,23 @@ class UserUpdate(UserBase):
 
         return v.lower()
 
+    @field_validator('username')
+    @classmethod
+    def validate_username(cls, v):
+        if v is None:
+            return v
+
+        if not isinstance(v, str):
+            raise ValueError('Invalid username')
+
+        v = v.strip()
+        if len(v) < 3 or len(v) > 50:
+            raise ValueError(
+                'Username must be between 3 and 50 characters long'
+            )
+
+        return v
+
 
 class UserUpgradeRole(BaseModel):
     role: int
@@ -122,11 +164,17 @@ class UserUpgradeRole(BaseModel):
 
 # CRUD operations
 def create_user(db: DBSession, user: UserCreate) -> User:
-    new_user = User(**user.model_dump())
-    db.add(new_user)
-    db.commit()
-    db.refresh(new_user)
-    return new_user
+    try:
+        new_user = User(**user.model_dump())
+        db.add(new_user)
+        db.commit()
+        db.refresh(new_user)
+        return new_user
+    except IntegrityError:
+        db.rollback()
+        raise HTTPException(
+            status_code=409, detail='Email or username already exists'
+        ) from None
 
 
 def get_user_by_id(db: DBSession, id: int) -> User | None:
@@ -300,4 +348,47 @@ def read_user_by_email(email: str, db: DBSession):
     if not db_user:
         raise HTTPException(status_code=404, detail='User not found')
 
+    return db_user
+
+
+@router.patch(
+    '/upload_cover/{user_id}',
+    response_model=UserResponse,
+    status_code=200,
+    tags=['Users'],
+)
+async def upload_user_cover(
+    user_id: int, db: DBSession, file: UploadFile = UPLOAD_FILE_PARAM
+):
+    # check file type
+    if not file.content_type.startswith('image/'):
+        raise HTTPException(
+            status_code=400, detail='File upload không phải là ảnh'
+        )
+    # create unique filename
+    ext = file.filename.split('.')[-1]
+    from uuid import uuid4
+
+    filename = f'{uuid4().hex}.{ext}'
+    # file save path
+    file_path = os.path.join(IMAGES_DIR, filename)
+    # save file
+    with open(file_path, 'wb') as f:
+        f.write(await file.read())
+    # file url return
+    file_url = f'/static/images/{filename}'
+
+    # query user
+    db_user = get_user_by_id(db, user_id)
+    if not db_user:
+        raise HTTPException(status_code=404, detail='User not found')
+    db_user.cover_url = file_url
+    try:
+        db.commit()
+        db.refresh(db_user)
+    except IntegrityError:
+        db.rollback()
+        raise HTTPException(
+            status_code=500, detail='Could not update user cover image'
+        ) from None
     return db_user

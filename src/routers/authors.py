@@ -83,6 +83,13 @@ def create_author_with_user(db: DBSession, payload: AuthorCreate) -> Author:
         raise HTTPException(status_code=400, detail=message) from e
 
 
+def get_author_by_keyword(db: DBSession, keyword: str) -> list[Author]:
+    authors = (
+        db.query(Author).filter(Author.pen_name.ilike(f'%{keyword}%')).all()
+    )
+    return authors
+
+
 def create_author_from_userId(
     db: DBSession, author_data: AuthorCreateByUserId
 ) -> Author:
@@ -236,3 +243,14 @@ def update_author_by_id(
 ):
     db_author = update_author(db, author_id, author_data)
     return db_author
+
+
+@router.get(
+    '/search/',
+    response_model=list[AuthorResponse],
+    status_code=200,
+    tags=['Authors'],
+)
+def search_authors(keyword: str, db: DBSession):
+    authors = get_author_by_keyword(db, keyword)
+    return authors

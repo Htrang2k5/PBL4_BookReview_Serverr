@@ -1,6 +1,8 @@
+import os
+import shutil
 from datetime import datetime
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, File, HTTPException, UploadFile
 from pydantic import BaseModel, ConfigDict
 
 from src.database import DBSession
@@ -8,6 +10,13 @@ from src.models import Post
 from src.selenium_pages import web_data
 
 router = APIRouter(prefix='/posts', tags=['Posts'])
+
+BASE_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..'))
+STATIC_DIR = os.path.join(BASE_DIR, 'static')
+IMAGES_DIR = os.path.join(STATIC_DIR, 'images')
+os.makedirs(IMAGES_DIR, exist_ok=True)
+
+UPLOAD_FILE_PARAM = File(...)
 
 
 # Schemas
@@ -37,6 +46,15 @@ class PostResponse(PostBase):
     created_at: datetime
     updated_at: datetime
 
+    model_config = ConfigDict(from_attributes=True)
+
+
+class PostResponseShort(PostBase):
+    id: int
+    title: str
+    author_id: int
+    created_at: datetime
+    updated_at: datetime
     model_config = ConfigDict(from_attributes=True)
 
 
@@ -92,6 +110,10 @@ def get_posts_by_author_id(db: DBSession, author_id: int) -> list[Post]:
 
 def get_posts(db: DBSession, skip: int = 0, limit: int = 100) -> list[Post]:
     return db.query(Post).offset(skip).limit(limit).all()
+
+
+def get_posts_by_keyword(db: DBSession, keyword: str) -> list[Post]:
+    return db.query(Post).filter(Post.title.ilike(f'%{keyword}%')).all()
 
 
 def update_post_by_id(
@@ -244,3 +266,57 @@ def create_post_from_crawl(month: int, db: DBSession):
 def edit_posts_save_path(db: DBSession):
     edit_save_path(db)
     return 'Posts save paths edited successfully'
+
+
+@router.get(
+    '/search/',
+    response_model=list[PostResponseShort],
+    status_code=200,
+)
+def search_posts(keyword: str, db: DBSession):
+    posts = get_posts_by_keyword(db, keyword)
+    return posts
+
+
+@router.post(
+    '/upload-cover/{post_id}',
+    response_model=PostResponse,
+    status_code=200,
+)
+def upload_post_cover_image(
+    post_id: int, db: DBSession, file: UploadFile = UPLOAD_FILE_PARAM
+):
+    # check file type
+    if not file.content_type.startswith('image/'):
+        raise HTTPException(
+            status_code=400,
+            detail='Invalid file type. Only images are allowed.',
+        )
+    db_post = get_post_by_id(db, post_id)
+    if not db_post:
+        raise HTTPException(status_code=404, detail='Post not found')
+
+    file_name = file.filename.split('/')[-1]
+    save_path = os.path.join(IMAGES_DIR, file_name)
+    file_url = '/static/images/' + file_name
+    try:
+        with open(save_path, 'wb') as buffer:
+            shutil.copyfileobj(file.file, buffer)
+    except Exception:
+        raise HTTPException(
+            status_code=500, detail='Could not save cover image'
+        ) from None
+    db_post.cover_url = file_url
+    try:
+        db.add(db_post)
+        db.commit()
+        db.refresh(db_post)
+    except Exception:
+        db.rollback()
+        raise HTTPException(
+            status_code=500, detail='Could not update post cover image'
+        ) from None
+    return db_post
+
+
+# The End

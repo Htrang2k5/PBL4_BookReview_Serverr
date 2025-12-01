@@ -38,6 +38,10 @@ class User(Base):
     id = mapped_column(
         Integer, primary_key=True, autoincrement=True, index=True
     )
+    cover_url = mapped_column(String(256), nullable=True)
+    username = mapped_column(
+        String(50), unique=True, nullable=False, index=True
+    )
     email = mapped_column(String(100), unique=True, nullable=False, index=True)
     password = mapped_column(String(128), nullable=False)
     phone_number = mapped_column(String(16), nullable=True)
