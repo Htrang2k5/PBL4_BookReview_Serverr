@@ -1,6 +1,6 @@
 from fastapi import FastAPI
 
-from .routers import users
+from .routers import authors, posts, sessions, users
 
 app = FastAPI(title='Book Review API')
 
@@ -11,3 +11,6 @@ async def read_root():
 
 
 app.include_router(users.router)
+app.include_router(authors.router)
+app.include_router(posts.router)
+app.include_router(sessions.router)
