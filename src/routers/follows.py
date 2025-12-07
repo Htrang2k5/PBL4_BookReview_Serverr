@@ -1,0 +1,121 @@
+from fastapi import APIRouter
+from sqlalchemy import func, select
+
+from src.database import DBSession
+from src.models import session, users_follow_authors
+
+router = APIRouter(prefix='/follows', tags=['Follows'])
+
+
+# CRUD
+
+
+def get_id_user_by_token(db: DBSession, Stoken: str) -> int | None:
+    sessions = (
+        db.query(session)
+        .filter(session.token == Stoken, session.expires_at > func.now())
+        .first()
+    )
+    if sessions is None:
+        return None
+    return sessions.user_id
+
+
+def get_all_follow_users_by_author_id(db: DBSession, author_id: int):
+    follows = db.execute(
+        select(users_follow_authors.c.user_id).where(
+            users_follow_authors.c.author_id == author_id
+        )
+    ).all()
+    return [follow.user_id for follow in follows]
+
+
+def get_all_follower_authors_by_user_id(db: DBSession, user_id: int):
+    follows = db.execute(
+        select(users_follow_authors.c.author_id).where(
+            users_follow_authors.c.user_id == user_id
+        )
+    ).all()
+    return [follow.author_id for follow in follows]
+
+
+def check_status_follow_by_token_and_authorId(
+    db: DBSession, Stoken: str, id_author: int
+):
+    try:
+        id_user = get_id_user_by_token(db, Stoken)
+        if id_user is None:
+            return 'Invalid or expired session token'
+        follow = db.execute(
+            select(users_follow_authors).where(
+                users_follow_authors.c.user_id == id_user,
+                users_follow_authors.c.author_id == id_author,
+            )
+        ).first()
+        if follow is None:
+            return 'User is not following this author'
+        return 'User is following this author'
+    except Exception as e:
+        return f'Error validating session token: {str(e)}'
+
+
+def follow_author_by_token_of_userId(
+    db: DBSession, Stoken: str, id_author: int
+):
+    try:
+        id_user = get_id_user_by_token(db, Stoken)
+        if id_user is None:
+            return 'Invalid or expired session token'
+        follow = db.execute(
+            select(users_follow_authors).where(
+                users_follow_authors.c.user_id == id_user,
+                users_follow_authors.c.author_id == id_author,
+            )
+        ).first()
+        if follow is not None:
+            return 'User is already following this author'
+        new_follow = users_follow_authors.insert().values(
+            user_id=id_user, author_id=id_author
+        )
+        db.execute(new_follow)
+        db.commit()
+        return 'User followed successfully'
+    except Exception as e:
+        return f'Error validating session token: {str(e)}'
+
+
+# router endpoints would go here
+@router.post('/', response_model=str, status_code=201)
+async def follow_user(session_token: str, author_id: int, db: DBSession):
+    try:
+        return follow_author_by_token_of_userId(db, session_token, author_id)
+    except Exception as e:
+        return f'Error: {str(e)}'
+
+
+@router.get('/{author_id}/status', response_model=str)
+async def check_follow_status(
+    session_token: str, author_id: int, db: DBSession
+):
+    try:
+        return check_status_follow_by_token_and_authorId(
+            db, session_token, author_id
+        )
+    except Exception as e:
+        return f'Error: {str(e)}'
+
+
+@router.get('/{author_id}/followers', response_model=list[int])
+async def get_followers(author_id: int, db: DBSession):
+    try:
+        return get_all_follow_users_by_author_id(db, author_id)
+    except Exception as e:
+        return f'Error: {str(e)}'
+
+
+@router.get('/user/{user_id}/following', response_model=list[int])
+async def get_following(user_id: int, db: DBSession):
+    try:
+        return get_all_follower_authors_by_user_id(db, user_id)
+    except Exception as e:
+        return f'Error: {str(e)}'

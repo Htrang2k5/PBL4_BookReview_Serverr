@@ -25,15 +25,29 @@ def generate_token():
     return token, expires_at
 
 
-def create_session(db: DBSession, payload: SessionCreate) -> session:
-    token, expires_at = generate_token()
-    new_session = session(
-        user_id=payload.user_id, token=token, expires_at=expires_at
+def get_session_by_userid(db: DBSession, user_id: int) -> session | None:
+    return (
+        db.query(session)
+        .filter(session.user_id == user_id, session.expires_at > datetime.now())
+        .first()
     )
-    db.add(new_session)
-    db.commit()
-    db.refresh(new_session)
-    return new_session
+
+
+def create_session(db: DBSession, payload: SessionCreate) -> session:
+    try:
+        sessions = get_session_by_userid(db, payload.user_id)
+        if sessions is not None:
+            return None
+        token, expires_at = generate_token()
+        new_session = session(
+            user_id=payload.user_id, token=token, expires_at=expires_at
+        )
+        db.add(new_session)
+        db.commit()
+        db.refresh(new_session)
+        return new_session
+    except Exception:
+        return None
 
 
 def delete_session_by_token(db: DBSession, token: str) -> bool:
@@ -68,6 +82,11 @@ async def login_user(db: DBSession, email: str, password: str):
         raise HTTPException(status_code=401, detail='Invalid user account')
     # create new session or token here (omitted for brevity)
     new_session = create_session(db, SessionCreate(user_id=db_user.id))
+    if new_session is None:
+        raise HTTPException(
+            status_code=400,
+            detail='User already has an active session! Please use that token.',
+        )
     return {
         'message': 'Login successful',
         'user_id': db_user.id,
