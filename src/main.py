@@ -5,7 +5,7 @@ from fastapi.staticfiles import StaticFiles
 
 from src.routers import follows
 
-from .routers import authors, posts, sessions, users
+from .routers import authors, comments, posts, reactions, sessions, users
 
 app = FastAPI(title='Book Review API')
 
@@ -20,6 +20,8 @@ app.include_router(authors.router)
 app.include_router(posts.router)
 app.include_router(sessions.router)
 app.include_router(follows.router)
+app.include_router(comments.router)
+app.include_router(reactions.router)
 
 # BASE_DIR = thư mục BOOKREVIEW_SERVER (project root)
 BASE_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))

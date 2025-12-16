@@ -84,6 +84,32 @@ def follow_author_by_token_of_userId(
         return f'Error validating session token: {str(e)}'
 
 
+def unfollow_author_by_token_of_userId(
+    db: DBSession, Stoken: str, id_author: int
+):
+    try:
+        id_user = get_id_user_by_token(db, Stoken)
+        if id_user is None:
+            return 'Invalid or expired session token'
+        follow = db.execute(
+            select(users_follow_authors).where(
+                users_follow_authors.c.user_id == id_user,
+                users_follow_authors.c.author_id == id_author,
+            )
+        ).first()
+        if follow is None:
+            return 'User is not following this author'
+        delete_follow = users_follow_authors.delete().where(
+            users_follow_authors.c.user_id == id_user,
+            users_follow_authors.c.author_id == id_author,
+        )
+        db.execute(delete_follow)
+        db.commit()
+        return 'User unfollowed successfully'
+    except Exception as e:
+        return f'Error validating session token: {str(e)}'
+
+
 # router endpoints would go here
 @router.post('/', response_model=str, status_code=201)
 async def follow_user(session_token: str, author_id: int, db: DBSession):
@@ -117,5 +143,13 @@ async def get_followers(author_id: int, db: DBSession):
 async def get_following(user_id: int, db: DBSession):
     try:
         return get_all_follower_authors_by_user_id(db, user_id)
+    except Exception as e:
+        return f'Error: {str(e)}'
+
+
+@router.delete('/', response_model=str)
+async def unfollow_user(session_token: str, author_id: int, db: DBSession):
+    try:
+        return unfollow_author_by_token_of_userId(db, session_token, author_id)
     except Exception as e:
         return f'Error: {str(e)}'
