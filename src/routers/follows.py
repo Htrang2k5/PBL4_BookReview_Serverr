@@ -2,7 +2,14 @@ from fastapi import APIRouter
 from sqlalchemy import func, select
 
 from src.database import DBSession
-from src.models import session, users_follow_authors
+from src.models import (
+    Author,
+    Notification,
+    NotificationRecipient,
+    session,
+    users_follow_authors,
+)
+from src.notification_manager import manager
 
 router = APIRouter(prefix='/follows', tags=['Follows'])
 
@@ -59,13 +66,18 @@ def check_status_follow_by_token_and_authorId(
         return f'Error validating session token: {str(e)}'
 
 
-def follow_author_by_token_of_userId(
+async def follow_author_by_token_of_userId(
     db: DBSession, Stoken: str, id_author: int
 ):
     try:
         id_user = get_id_user_by_token(db, Stoken)
         if id_user is None:
             return 'Invalid or expired session token'
+        author = db.query(Author).filter(Author.id == id_author).first()
+        if author is None:
+            return 'Author does not exist'
+        if id_user == author.user_id:
+            return 'User cannot follow themselves'
         follow = db.execute(
             select(users_follow_authors).where(
                 users_follow_authors.c.user_id == id_user,
@@ -79,6 +91,27 @@ def follow_author_by_token_of_userId(
         )
         db.execute(new_follow)
         db.commit()
+        # Create a notification for the author
+        notification = Notification(
+            title='You have a new follower!',
+            message=f'User {id_user} has started following you.',
+        )
+        db.add(notification)
+        db.commit()
+        # Add the notification recipient
+        notification_recipient = NotificationRecipient(
+            notification_id=notification.id, user_id=author.user_id
+        )
+        db.add(notification_recipient)
+        db.commit()
+        # Send real-time notification if the author is connected
+        payload = {
+            'type': 'NEW_FOLLOWER',
+            'message': f'User {id_user} is now following you!',
+        }
+        pushed = await manager.send_notification(author.user_id, payload)
+        if pushed:
+            print(f'Notification sent to author {id_author}')
         return 'User followed successfully'
     except Exception as e:
         return f'Error validating session token: {str(e)}'
@@ -114,7 +147,9 @@ def unfollow_author_by_token_of_userId(
 @router.post('/', response_model=str, status_code=201)
 async def follow_user(session_token: str, author_id: int, db: DBSession):
     try:
-        return follow_author_by_token_of_userId(db, session_token, author_id)
+        return await follow_author_by_token_of_userId(
+            db, session_token, author_id
+        )
     except Exception as e:
         return f'Error: {str(e)}'
 

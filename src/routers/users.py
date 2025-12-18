@@ -34,9 +34,7 @@ class UserBase(BaseModel):
 
         v = v.strip()
         if len(v) < 3 or len(v) > 50:
-            raise ValueError(
-                'Username must be between 3 and 50 characters long'
-            )
+            raise ValueError('Username must be between 3 and 50 characters long')
 
         return v
 
@@ -144,9 +142,7 @@ class UserUpdate(UserBase):
 
         v = v.strip()
         if len(v) < 3 or len(v) > 50:
-            raise ValueError(
-                'Username must be between 3 and 50 characters long'
-            )
+            raise ValueError('Username must be between 3 and 50 characters long')
 
         return v
 
@@ -172,9 +168,7 @@ def create_user(db: DBSession, user: UserCreate) -> User:
         return new_user
     except IntegrityError:
         db.rollback()
-        raise HTTPException(
-            status_code=409, detail='Email or username already exists'
-        ) from None
+        raise HTTPException(status_code=409, detail='Email or username already exists') from None
 
 
 def get_user_by_id(db: DBSession, id: int) -> User | None:
@@ -182,18 +176,10 @@ def get_user_by_id(db: DBSession, id: int) -> User | None:
 
 
 def get_users(db: DBSession, skip: int = 0, limit: int = 10) -> list[User]:
-    return (
-        db.query(User)
-        .order_by(User.created_at.desc())
-        .offset(skip)
-        .limit(limit)
-        .all()
-    )
+    return db.query(User).order_by(User.created_at.desc()).offset(skip).limit(limit).all()
 
 
-def update_user_by_id(
-    db: DBSession, id: int, user_update: UserUpdate
-) -> User | None:
+def update_user_by_id(db: DBSession, id: int, user_update: UserUpdate) -> User | None:
     db_user = get_user_by_id(db, id)
     if not db_user:
         return None
@@ -237,9 +223,7 @@ def delete_user_by_id(db: DBSession, id: int) -> bool:
     return True
 
 
-def upgrade_user_role_by_id(
-    db: DBSession, id: int, new_role: int
-) -> User | None:
+def upgrade_user_role_by_id(db: DBSession, id: int, new_role: int) -> User | None:
     new_author = None
     db_user = get_user_by_id(db, id)
     if not db_user:
@@ -274,6 +258,10 @@ def check_user_login(db: DBSession, email: str, password: str) -> User | None:
     return None
 
 
+def get_count_users(db: DBSession) -> int:
+    return db.query(User).count()
+
+
 # Routes
 @router.post('/', response_model=UserResponse, status_code=201, tags=['Users'])
 def create_new_user(user: UserCreate, db: DBSession):
@@ -281,9 +269,7 @@ def create_new_user(user: UserCreate, db: DBSession):
     return db_user
 
 
-@router.get(
-    '/{id}', response_model=UserResponse, status_code=200, tags=['Users']
-)
+@router.get('/{id}', response_model=UserResponse, status_code=200, tags=['Users'])
 def read_user(id: int, db: DBSession):
     db_user = get_user_by_id(db, id)
     if not db_user:
@@ -292,17 +278,13 @@ def read_user(id: int, db: DBSession):
     return db_user
 
 
-@router.get(
-    '/', response_model=list[UserResponse], status_code=200, tags=['Users']
-)
+@router.get('/', response_model=list[UserResponse], status_code=200, tags=['Users'])
 def read_users(db: DBSession, skip: int = 0, limit: int = 10):
     users = get_users(db, skip=skip, limit=limit)
     return users
 
 
-@router.patch(
-    '/{id}', response_model=UserResponse, status_code=200, tags=['Users']
-)
+@router.patch('/{id}', response_model=UserResponse, status_code=200, tags=['Users'])
 def update_user(id: int, user_update: UserUpdate, db: DBSession):
     db_user = update_user_by_id(db, id, user_update)
     if not db_user:
@@ -323,9 +305,7 @@ def delete_user(id: int, db: DBSession):
     status_code=200,
     tags=['Users'],
 )
-def upgrade_user_role(
-    user_id: int, user_upgrade: UserUpgradeRole, db: DBSession
-):
+def upgrade_user_role(user_id: int, user_upgrade: UserUpgradeRole, db: DBSession):
     try:
         db_user = upgrade_user_role_by_id(db, user_id, user_upgrade.role)
     except ValueError as e:
@@ -357,14 +337,10 @@ def read_user_by_email(email: str, db: DBSession):
     status_code=200,
     tags=['Users'],
 )
-async def upload_user_cover(
-    user_id: int, db: DBSession, file: UploadFile = UPLOAD_FILE_PARAM
-):
+async def upload_user_cover(user_id: int, db: DBSession, file: UploadFile = UPLOAD_FILE_PARAM):
     # check file type
     if not file.content_type.startswith('image/'):
-        raise HTTPException(
-            status_code=400, detail='File upload không phải là ảnh'
-        )
+        raise HTTPException(status_code=400, detail='File upload không phải là ảnh')
     # create unique filename
     ext = file.filename.split('.')[-1]
     from uuid import uuid4
@@ -388,7 +364,16 @@ async def upload_user_cover(
         db.refresh(db_user)
     except IntegrityError:
         db.rollback()
-        raise HTTPException(
-            status_code=500, detail='Could not update user cover image'
-        ) from None
+        raise HTTPException(status_code=500, detail='Could not update user cover image') from None
     return db_user
+
+
+@router.get(
+    '/count',
+    response_model=int,
+    status_code=200,
+    tags=['Users'],
+)
+def read_count_users(db: DBSession):
+    count = get_count_users(db)
+    return count

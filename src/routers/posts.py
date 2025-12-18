@@ -6,7 +6,13 @@ from fastapi import APIRouter, File, HTTPException, UploadFile
 from pydantic import BaseModel, ConfigDict
 
 from src.database import DBSession
-from src.models import Post
+from src.models import (
+    Notification,
+    NotificationRecipient,
+    Post,
+    users_follow_authors,
+)
+from src.notification_manager import manager
 from src.selenium_pages import web_data
 
 router = APIRouter(prefix='/posts', tags=['Posts'])
@@ -67,7 +73,16 @@ class PostCrawl(PostBase):
 
 
 # CRUD operations
-def create_post(db: DBSession, payload: PostCreate) -> Post:
+
+
+def get_all_flowers_of_author(db: DBSession, author_id: int) -> list[int]:
+    followers = db.execute(
+        users_follow_authors.select().where(users_follow_authors.c.author_id == author_id)
+    ).all()
+    return [follower.user_id for follower in followers]
+
+
+async def create_post(db: DBSession, payload: PostCreate) -> Post:
     new_post = Post(
         title=payload.title,
         content=payload.content,
@@ -76,6 +91,34 @@ def create_post(db: DBSession, payload: PostCreate) -> Post:
     db.add(new_post)
     db.commit()
     db.refresh(new_post)
+    # create notification for new post
+    try:
+        notification = Notification(
+            title='Youe have a new notification of new post',
+            message=f'New post titled "{new_post.title}" has been published.',
+        )
+        db.add(notification)
+        db.commit()
+        db.refresh(notification)
+        # get all followers of the author
+        followers_ids = get_all_flowers_of_author(db, payload.author_id)
+        for follower_id in followers_ids:
+            notification_recipient = NotificationRecipient(
+                notification_id=notification.id,
+                user_id=follower_id,
+            )
+            db.add(notification_recipient)
+            db.commit()
+            db.refresh(notification_recipient)
+            # websocket real-time notification can be sent here
+            payload_ws = {
+                'type': 'NEW_POST',
+                'message': f'Author {payload.author_id} has a new post: {new_post.title}',
+            }
+            await manager.send_notification(follower_id, payload_ws)
+    except Exception as e:
+        db.rollback()
+        print(f'Error creating notification for new post: {str(e)}')
     return new_post
 
 
@@ -116,9 +159,7 @@ def get_posts_by_keyword(db: DBSession, keyword: str) -> list[Post]:
     return db.query(Post).filter(Post.title.ilike(f'%{keyword}%')).all()
 
 
-def update_post_by_id(
-    db: DBSession, post_id: int, post_update: PostUpdate
-) -> Post | None:
+def update_post_by_id(db: DBSession, post_id: int, post_update: PostUpdate) -> Post | None:
     db_post = get_post_by_id(db, post_id)
     if not db_post:
         return None
@@ -176,14 +217,18 @@ def edit_save_path(db: DBSession):
         raise
 
 
+async def get_post_count(db: DBSession) -> int:
+    return db.query(Post).count()
+
+
 # Routes
 @router.post(
     '/',
     response_model=PostResponse,
     status_code=201,
 )
-def create_new_post(post: PostCreate, db: DBSession):
-    db_post = create_post(db, post)
+async def create_new_post(post: PostCreate, db: DBSession):
+    db_post = await create_post(db, post)
     return db_post
 
 
@@ -283,9 +328,7 @@ def search_posts(keyword: str, db: DBSession):
     response_model=PostResponse,
     status_code=200,
 )
-def upload_post_cover_image(
-    post_id: int, db: DBSession, file: UploadFile = UPLOAD_FILE_PARAM
-):
+def upload_post_cover_image(post_id: int, db: DBSession, file: UploadFile = UPLOAD_FILE_PARAM):
     # check file type
     if not file.content_type.startswith('image/'):
         raise HTTPException(
@@ -303,9 +346,7 @@ def upload_post_cover_image(
         with open(save_path, 'wb') as buffer:
             shutil.copyfileobj(file.file, buffer)
     except Exception:
-        raise HTTPException(
-            status_code=500, detail='Could not save cover image'
-        ) from None
+        raise HTTPException(status_code=500, detail='Could not save cover image') from None
     db_post.cover_url = file_url
     try:
         db.add(db_post)
@@ -313,10 +354,14 @@ def upload_post_cover_image(
         db.refresh(db_post)
     except Exception:
         db.rollback()
-        raise HTTPException(
-            status_code=500, detail='Could not update post cover image'
-        ) from None
+        raise HTTPException(status_code=500, detail='Could not update post cover image') from None
     return db_post
+
+
+@router.get('/count', response_model=int, tags=['Posts'])
+async def count_posts(db: DBSession):
+    count = await get_post_count(db)
+    return count
 
 
 # The End

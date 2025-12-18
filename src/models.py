@@ -81,13 +81,6 @@ class User(Base):
         cascade='all, delete-orphan',
         single_parent=True,
     )
-    notifications = relationship(
-        'Notification',
-        back_populates='recipient',
-        cascade='all, delete-orphan',
-        single_parent=True,
-    )
-
     notification_recipients = relationship(
         'NotificationRecipient',
         back_populates='user',
@@ -184,7 +177,6 @@ class Post(Base):
     reports = relationship(
         'PostReport',
         back_populates='post',
-        cascade='all, delete-orphan',
         single_parent=True,
     )
 
@@ -252,7 +244,7 @@ class PostReport(Base):
         Integer, ForeignKey('users.id', ondelete='CASCADE'), nullable=False
     )
     post_id = mapped_column(
-        Integer, ForeignKey('posts.id', ondelete='CASCADE'), nullable=False
+        Integer, ForeignKey('posts.id', ondelete='CASCADE'), nullable=True
     )
 
     # Relationships
@@ -269,15 +261,6 @@ class Notification(Base):
     title = mapped_column(String(128), nullable=False)
     message = mapped_column(Text(512), nullable=False)
 
-    # Foreign keys
-    recipient_id = mapped_column(
-        Integer,
-        ForeignKey('users.id', ondelete='CASCADE'),
-        nullable=False,
-    )
-
-    # Relationships
-    recipient = relationship('User', back_populates='notifications')
     recipients = relationship(
         'NotificationRecipient',
         back_populates='notification',
