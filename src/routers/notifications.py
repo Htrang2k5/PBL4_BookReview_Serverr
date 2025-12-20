@@ -50,15 +50,17 @@ def get_all_notifications_by_token(db: DBSession, token: str) -> list[Notificati
     notifications = []
     for recipient in id_notifications:
         notification = (
-            db.query(Notification)
-            .filter(Notification.id == recipient.notification_id)
-            .first()
+            db.query(Notification).filter(Notification.id == recipient.notification_id).first()
         )
         if notification:
             noti = NotificationResponse(
-                id=notification.id, title=notification.title,
-                message=notification.message, is_read=recipient.is_read,
-                created_at=notification.created_at, updated_at=notification.updated_at)
+                id=notification.id,
+                title=notification.title,
+                message=notification.message,
+                is_read=recipient.is_read,
+                created_at=notification.created_at,
+                updated_at=notification.updated_at,
+            )
             notifications.append(noti)
     return notifications
 
@@ -85,7 +87,13 @@ def get_detail_notification_by_token(
         db.commit()
         # lay chi tiet notification
         notification = db.query(Notification).filter(Notification.id == notification_id).first()
-        return notification
+        noti = NotificationResponse(id=notification.id,
+                                    title=notification.title,
+                                    message=notification.message,
+                                    is_read=notification_recipient.is_read,
+                                    created_at=notification.created_at,
+                                    updated_at=notification.updated_at)
+        return noti
     except Exception as e:
         return f'Error: {str(e)}'
 
@@ -118,9 +126,7 @@ def mark_all_notifications_as_read(db: DBSession, token: str) -> str:
         if user_id is None:
             return 'Invalid or expired session token'
         notification_recipients = (
-            db.query(NotificationRecipient)
-            .filter(NotificationRecipient.user_id == user_id)
-            .all()
+            db.query(NotificationRecipient).filter(NotificationRecipient.user_id == user_id).all()
         )
         for recipient in notification_recipients:
             recipient.is_read = True
@@ -150,16 +156,15 @@ def mark_notification_as_unread(db: DBSession, notification_id: int, token: str)
         return 'Notification marked as unread'
     except Exception as e:
         return f'Error: {str(e)}'
-    
+
+
 def mark_all_notifications_as_unread(db: DBSession, token: str) -> str:
     try:
         user_id = get_user_id_by_token(db, token)
         if user_id is None:
             return 'Invalid or expired session token'
         notification_recipients = (
-            db.query(NotificationRecipient)
-            .filter(NotificationRecipient.user_id == user_id)
-            .all()
+            db.query(NotificationRecipient).filter(NotificationRecipient.user_id == user_id).all()
         )
         for recipient in notification_recipients:
             recipient.is_read = False
@@ -204,31 +209,33 @@ async def send_notification_to_user(token: str, db: DBSession):
     await manager.send_notification(user_id, payload)
     return {'status': 'sent'}
 
+
 @router.get('/user/notifications', response_model=list[NotificationResponse])
 async def api_get_all_notifications_by_token(token: str, db: DBSession):
     notifications = get_all_notifications_by_token(db, token)
     return notifications
 
+
 @router.get('/notification/{notification_id}', response_model=NotificationResponse | str)
-async def api_get_detail_notification_by_token(
-    notification_id: int, token: str, db: DBSession
-):
+async def api_get_detail_notification_by_token(notification_id: int, token: str, db: DBSession):
     return get_detail_notification_by_token(db, notification_id, token)
+
 
 @router.post('/notification/{notification_id}/read', response_model=str)
 async def api_mark_notification_as_read(notification_id: int, token: str, db: DBSession):
     return mark_notification_as_read(db, notification_id, token)
 
+
 @router.post('/notifications/read_all', response_model=str)
 async def api_mark_all_notifications_as_read(token: str, db: DBSession):
     return mark_all_notifications_as_read(db, token)
+
 
 @router.post('/notification/{notification_id}/unread', response_model=str)
 async def api_mark_notification_as_unread(notification_id: int, token: str, db: DBSession):
     return mark_notification_as_unread(db, notification_id, token)
 
+
 @router.post('/notifications/unread_all', response_model=str)
 async def api_mark_all_notifications_as_unread(token: str, db: DBSession):
     return mark_all_notifications_as_unread(db, token)
-
-
