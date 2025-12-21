@@ -82,17 +82,17 @@ def get_all_flowers_of_author(db: DBSession, author_id: int) -> list[int]:
     return [follower.user_id for follower in followers]
 
 
-async def create_post(db: DBSession, payload: PostCreate) -> Post:
-    new_post = Post(
-        title=payload.title,
-        content=payload.content,
-        author_id=payload.author_id,
-    )
-    db.add(new_post)
-    db.commit()
-    db.refresh(new_post)
-    # create notification for new post
+def create_post(db: DBSession, payload: PostCreate):
     try:
+        new_post = Post(
+            title=payload.title,
+            content=payload.content,
+            author_id=payload.author_id,
+        )
+        db.add(new_post)
+        db.commit()
+        db.refresh(new_post)
+        # create notification for new post
         notification = Notification(
             title='Youe have a new notification of new post',
             message=f'New post titled "{new_post.title}" has been published.',
@@ -110,16 +110,10 @@ async def create_post(db: DBSession, payload: PostCreate) -> Post:
             db.add(notification_recipient)
             db.commit()
             db.refresh(notification_recipient)
-            # websocket real-time notification can be sent here
-            payload_ws = {
-                'type': 'NEW_POST',
-                'message': f'Author {payload.author_id} has a new post: {new_post.title}',
-            }
-            await manager.send_notification(follower_id, payload_ws)
+        return new_post, new_post.author_id, new_post.title, followers_ids
     except Exception as e:
         db.rollback()
-        print(f'Error creating notification for new post: {str(e)}')
-    return new_post
+        raise e
 
 
 def create_post_crawl(db: DBSession, payload: PostCrawl) -> Post:
@@ -230,8 +224,24 @@ def get_post_count(db: DBSession) -> int:
     status_code=201,
 )
 async def create_new_post(post: PostCreate, db: DBSession):
-    db_post = await create_post(db, post)
-    return db_post
+    try:
+        db_post, author_id, title, follower_ids = create_post(db, post)
+        # websocket real-time notification can be sent here
+        payload_ws = {
+            'type': 'NEW_POST',
+            'message': f'Author {author_id} has a new post: {title}',
+        }
+        for follower_id in follower_ids:
+            pushed = await manager.send_notification(follower_id, payload_ws)
+            if pushed:
+                print(f'Notification sent to follower {follower_id}')
+            else: 
+                raise HTTPException(
+                    status_code=500,
+                    detail=f'Could not send notification to follower {follower_id}')
+        return db_post
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f'Error creating post: {str(e)}') from e
 
 
 @router.get('/count', response_model=int, status_code=200)
