@@ -76,7 +76,7 @@ router = APIRouter(prefix='/sessions', tags=['Sessions'])
 
 
 @router.post('/login')
-async def login_user(db: DBSession, email: str, password: str):
+def login_user(db: DBSession, email: str, password: str):
     db_user = users.check_user_login(db, email, password)
     if not db_user:
         raise HTTPException(status_code=401, detail='Invalid user account')
@@ -95,7 +95,7 @@ async def login_user(db: DBSession, email: str, password: str):
 
 
 @router.post('/logout')
-async def logout_user(db: DBSession, token: str):
+def logout_user(db: DBSession, token: str):
     success = delete_session_by_token(db, token)
     if not success:
         raise HTTPException(status_code=400, detail='Invalid session token')
@@ -103,7 +103,7 @@ async def logout_user(db: DBSession, token: str):
 
 
 @router.post('/refresh-token')
-async def refresh_session_token(db: DBSession, token: str):
+def refresh_session_token(db: DBSession, token: str):
     updated_session = update_session_expiry(db, token)
     if not updated_session:
         raise HTTPException(

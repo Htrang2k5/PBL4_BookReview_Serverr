@@ -42,7 +42,7 @@ class AuthorCreateByUserId(BaseModel):
 
 
 # CRUD operations
-async def create_author_with_user(db: DBSession, payload: AuthorCreate) -> Author:
+def create_author_with_user(db: DBSession, payload: AuthorCreate) -> Author:
     try:
         # Create the user profile first
         user_data = payload.profile
@@ -82,12 +82,12 @@ async def create_author_with_user(db: DBSession, payload: AuthorCreate) -> Autho
         raise HTTPException(status_code=400, detail=message) from e
 
 
-async def get_author_by_keyword(db: DBSession, keyword: str) -> list[Author]:
+def get_author_by_keyword(db: DBSession, keyword: str) -> list[Author]:
     authors = db.query(Author).filter(Author.pen_name.ilike(f'%{keyword}%')).all()
     return authors
 
 
-async def create_author_from_userId(db: DBSession, author_data: AuthorCreateByUserId) -> Author:
+def create_author_from_userId(db: DBSession, author_data: AuthorCreateByUserId) -> Author:
     try:
         # Update user role to author (role = 1)
         user = db.query(User).filter(User.id == author_data.user_id).first()
@@ -110,7 +110,7 @@ async def create_author_from_userId(db: DBSession, author_data: AuthorCreateByUs
         raise HTTPException(status_code=400, detail='Duplicate or invalid data') from e
 
 
-async def delete_author(db: DBSession, author_id: int) -> bool:
+def delete_author(db: DBSession, author_id: int) -> bool:
     if author_id == 1:
         return False
     author = db.query(Author).filter(Author.id == author_id).first()
@@ -126,22 +126,22 @@ async def delete_author(db: DBSession, author_id: int) -> bool:
     return True
 
 
-async def get_author_by_id(db: DBSession, author_id: int) -> Author | None:
+def get_author_by_id(db: DBSession, author_id: int) -> Author | None:
     author = db.query(Author).filter(Author.id == author_id).first()
     return author
 
 
-async def get_author_by_user_id(db: DBSession, user_id: int) -> Author | None:
+def get_author_by_user_id(db: DBSession, user_id: int) -> Author | None:
     author = db.query(Author).filter(Author.user_id == user_id).first()
     return author
 
 
-async def get_all_authors(db: DBSession) -> list[Author]:
+def get_all_authors(db: DBSession) -> list[Author]:
     authors = db.query(Author).all()
     return authors
 
 
-async def update_author(db: DBSession, author_id: int, author_data: AuthorUpdate) -> Author | None:
+def update_author(db: DBSession, author_id: int, author_data: AuthorUpdate) -> Author | None:
     author = db.query(Author).filter(Author.id == author_id).first()
     if not author:
         raise HTTPException(status_code=404, detail='Author not found')
@@ -158,21 +158,27 @@ async def update_author(db: DBSession, author_id: int, author_data: AuthorUpdate
         raise HTTPException(status_code=400, detail='Duplicate or invalid data') from e
 
 
-async def get_count_authors(db: DBSession) -> int:
+def get_count_authors(db: DBSession) -> int:
     count = db.query(Author).count()
     return count
 
 
 # Routes
 @router.post('/', response_model=AuthorResponse, status_code=201, tags=['Authors'])
-async def create_new_author(author: AuthorCreate, db: DBSession):
-    db_author = await create_author_with_user(db, author)
+def create_new_author(author: AuthorCreate, db: DBSession):
+    db_author = create_author_with_user(db, author)
     return db_author
 
 
+@router.get('/count', response_model=int, tags=['Authors'])
+def count_authors(db: DBSession):
+    count = get_count_authors(db)
+    return count
+
+
 @router.delete('/{author_id}', status_code=204, tags=['Authors'])
-async def delete_author_by_id(author_id: int, db: DBSession):
-    if not await delete_author(db, author_id):
+def delete_author_by_id(author_id: int, db: DBSession):
+    if not delete_author(db, author_id):
         raise HTTPException(status_code=400, detail='Cannot delete this author')
     return 'Deleted successfully'
 
@@ -183,8 +189,8 @@ async def delete_author_by_id(author_id: int, db: DBSession):
     status_code=201,
     tags=['Authors'],
 )
-async def create_new_author_by_user_id(author: AuthorCreateByUserId, db: DBSession):
-    db_author = await create_author_from_userId(db, author)
+def create_new_author_by_user_id(author: AuthorCreateByUserId, db: DBSession):
+    db_author = create_author_from_userId(db, author)
     return db_author
 
 
@@ -194,16 +200,16 @@ async def create_new_author_by_user_id(author: AuthorCreateByUserId, db: DBSessi
     status_code=200,
     tags=['Authors'],
 )
-async def read_author_by_author_id(author_id: int, db: DBSession):
-    db_author = await get_author_by_id(db, author_id)
+def read_author_by_author_id(author_id: int, db: DBSession):
+    db_author = get_author_by_id(db, author_id)
     if not db_author:
         raise HTTPException(status_code=404, detail='Author not found')
     return db_author
 
 
 @router.get('/', response_model=list[AuthorResponse], status_code=200, tags=['Authors'])
-async def read_all_authors(db: DBSession):
-    authors = await get_all_authors(db)
+def read_all_authors(db: DBSession):
+    authors = get_all_authors(db)
     return authors
 
 
@@ -213,8 +219,8 @@ async def read_all_authors(db: DBSession):
     status_code=200,
     tags=['Authors'],
 )
-async def read_author_by_user_id(user_id: int, db: DBSession):
-    db_author = await get_author_by_user_id(db, user_id)
+def read_author_by_user_id(user_id: int, db: DBSession):
+    db_author = get_author_by_user_id(db, user_id)
     if not db_author:
         raise HTTPException(status_code=404, detail='Author not found')
     return db_author
@@ -226,8 +232,8 @@ async def read_author_by_user_id(user_id: int, db: DBSession):
     status_code=200,
     tags=['Authors'],
 )
-async def update_author_by_id(author_id: int, author_data: AuthorUpdate, db: DBSession):
-    db_author = await update_author(db, author_id, author_data)
+def update_author_by_id(author_id: int, author_data: AuthorUpdate, db: DBSession):
+    db_author = update_author(db, author_id, author_data)
     return db_author
 
 
@@ -237,12 +243,6 @@ async def update_author_by_id(author_id: int, author_data: AuthorUpdate, db: DBS
     status_code=200,
     tags=['Authors'],
 )
-async def search_authors(keyword: str, db: DBSession):
-    authors = await get_author_by_keyword(db, keyword)
+def search_authors(keyword: str, db: DBSession):
+    authors = get_author_by_keyword(db, keyword)
     return authors
-
-
-@router.get('/count', response_model=int, tags=['Authors'])
-async def count_authors(db: DBSession):
-    count = await get_count_authors(db)
-    return count

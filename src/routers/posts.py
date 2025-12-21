@@ -217,11 +217,13 @@ def edit_save_path(db: DBSession):
         raise
 
 
-async def get_post_count(db: DBSession) -> int:
+def get_post_count(db: DBSession) -> int:
     return db.query(Post).count()
 
 
 # Routes
+
+
 @router.post(
     '/',
     response_model=PostResponse,
@@ -232,13 +234,24 @@ async def create_new_post(post: PostCreate, db: DBSession):
     return db_post
 
 
+@router.get('/count', response_model=int, status_code=200)
+def count_posts(db: DBSession):
+    count = get_post_count(db)
+    return count
+
+
 @router.get(
     '/{post_id}',
     response_model=PostResponse,
     status_code=200,
 )
 def read_post(post_id: int, db: DBSession):
-    db_post = get_post_by_id(db, post_id)
+    try:
+        db_post = get_post_by_id(db, post_id)
+        if not db_post:
+            raise HTTPException(status_code=404, detail='Post not found')
+    except Exception as e:
+        raise HTTPException(status_code=404, detail=str(e)) from None
     return db_post
 
 
@@ -356,12 +369,6 @@ def upload_post_cover_image(post_id: int, db: DBSession, file: UploadFile = UPLO
         db.rollback()
         raise HTTPException(status_code=500, detail='Could not update post cover image') from None
     return db_post
-
-
-@router.get('/count', response_model=int, tags=['Posts'])
-async def count_posts(db: DBSession):
-    count = await get_post_count(db)
-    return count
 
 
 # The End

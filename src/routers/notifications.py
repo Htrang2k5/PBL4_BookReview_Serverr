@@ -5,7 +5,7 @@ from fastapi import APIRouter, WebSocket, WebSocketDisconnect
 from pydantic import BaseModel, ConfigDict
 from sqlalchemy import func
 
-from src.database import DBSession
+from src.database import DBSession, SessionLocal
 from src.models import Notification, NotificationRecipient, session
 from src.notification_manager import manager
 
@@ -87,12 +87,14 @@ def get_detail_notification_by_token(
         db.commit()
         # lay chi tiet notification
         notification = db.query(Notification).filter(Notification.id == notification_id).first()
-        noti = NotificationResponse(id=notification.id,
-                                    title=notification.title,
-                                    message=notification.message,
-                                    is_read=notification_recipient.is_read,
-                                    created_at=notification.created_at,
-                                    updated_at=notification.updated_at)
+        noti = NotificationResponse(
+            id=notification.id,
+            title=notification.title,
+            message=notification.message,
+            is_read=notification_recipient.is_read,
+            created_at=notification.created_at,
+            updated_at=notification.updated_at,
+        )
         return noti
     except Exception as e:
         return f'Error: {str(e)}'
@@ -178,12 +180,13 @@ def mark_all_notifications_as_unread(db: DBSession, token: str) -> str:
 
 
 @router.websocket('/notifications')
-async def websocket_endpoint(websocket: WebSocket, db: DBSession):
+async def websocket_endpoint(websocket: WebSocket):
     user_id = None
     await websocket.accept()
     try:
         first = await websocket.receive_json()
         token = first.get('token')
+        db = SessionLocal()
         user_id = get_user_id_by_token(db, token)
         if user_id is None:
             await websocket.close(code=1008)
@@ -211,31 +214,31 @@ async def send_notification_to_user(token: str, db: DBSession):
 
 
 @router.get('/user/notifications', response_model=list[NotificationResponse])
-async def api_get_all_notifications_by_token(token: str, db: DBSession):
+def api_get_all_notifications_by_token(token: str, db: DBSession):
     notifications = get_all_notifications_by_token(db, token)
     return notifications
 
 
 @router.get('/notification/{notification_id}', response_model=NotificationResponse | str)
-async def api_get_detail_notification_by_token(notification_id: int, token: str, db: DBSession):
+def api_get_detail_notification_by_token(notification_id: int, token: str, db: DBSession):
     return get_detail_notification_by_token(db, notification_id, token)
 
 
 @router.post('/notification/{notification_id}/read', response_model=str)
-async def api_mark_notification_as_read(notification_id: int, token: str, db: DBSession):
+def api_mark_notification_as_read(notification_id: int, token: str, db: DBSession):
     return mark_notification_as_read(db, notification_id, token)
 
 
 @router.post('/notifications/read_all', response_model=str)
-async def api_mark_all_notifications_as_read(token: str, db: DBSession):
+def api_mark_all_notifications_as_read(token: str, db: DBSession):
     return mark_all_notifications_as_read(db, token)
 
 
 @router.post('/notification/{notification_id}/unread', response_model=str)
-async def api_mark_notification_as_unread(notification_id: int, token: str, db: DBSession):
+def api_mark_notification_as_unread(notification_id: int, token: str, db: DBSession):
     return mark_notification_as_unread(db, notification_id, token)
 
 
 @router.post('/notifications/unread_all', response_model=str)
-async def api_mark_all_notifications_as_unread(token: str, db: DBSession):
+def api_mark_all_notifications_as_unread(token: str, db: DBSession):
     return mark_all_notifications_as_unread(db, token)

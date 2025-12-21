@@ -263,6 +263,19 @@ def get_count_users(db: DBSession) -> int:
 
 
 # Routes
+
+
+@router.get(
+    '/count',
+    response_model=int,
+    status_code=200,
+    tags=['Users'],
+)
+def read_count_users(db: DBSession):
+    count = get_count_users(db)
+    return count
+
+
 @router.post('/', response_model=UserResponse, status_code=201, tags=['Users'])
 def create_new_user(user: UserCreate, db: DBSession):
     db_user = create_user(db, user)
@@ -366,14 +379,3 @@ async def upload_user_cover(user_id: int, db: DBSession, file: UploadFile = UPLO
         db.rollback()
         raise HTTPException(status_code=500, detail='Could not update user cover image') from None
     return db_user
-
-
-@router.get(
-    '/count',
-    response_model=int,
-    status_code=200,
-    tags=['Users'],
-)
-def read_count_users(db: DBSession):
-    count = get_count_users(db)
-    return count

@@ -42,21 +42,37 @@ STATIC_DIR = os.path.join(BASE_DIR, 'static')
 app.mount('/static', StaticFiles(directory=STATIC_DIR), name='static')
 
 
-@app.middleware('http')
-async def disable_static_cache(request: Request, call_next):
-    response: Response = await call_next(request)
+# @app.middleware('http')
+# async def disable_static_cache(request: Request, call_next):
+#     response: Response = await call_next(request)
 
-    # nếu chỉ muốn áp dụng cho static
-    if request.url.path.startswith('/static/'):
-        # xóa ETag nếu có
-        if 'etag' in response.headers:
-            del response.headers['etag']
+#     # nếu chỉ muốn áp dụng cho static
+#     if request.url.path.startswith('/static/'):
+#         # xóa ETag nếu có
+#         if 'etag' in response.headers:
+#             del response.headers['etag']
 
-        # set no-cache
-        response.headers['Cache-Control'] = (
-            'no-store, no-cache, must-revalidate, max-age=0'
-        )
-        response.headers['Pragma'] = 'no-cache'
-        response.headers['Expires'] = '0'
+#         # set no-cache
+#         response.headers['Cache-Control'] = 'no-store, no-cache, must-revalidate, max-age=0'
+#         response.headers['Pragma'] = 'no-cache'
+#         response.headers['Expires'] = '0'
 
-    return response
+#     return response
+
+
+# @app.middleware('http')
+# async def disable_static_cache(request: Request, call_next):
+#     response: Response = await call_next(request)
+
+#     if request.url.path.startswith('/static/'):
+#         # Ngăn conditional cache -> tránh 304
+#         for h in ('etag', 'last-modified'):
+#             if h in response.headers:
+#                 del response.headers[h]
+
+#         # Tắt cache trình duyệt
+#         response.headers['Cache-Control'] = 'no-store, no-cache, must-revalidate, max-age=0'
+#         response.headers['Pragma'] = 'no-cache'
+#         response.headers['Expires'] = '0'
+
+#     return response

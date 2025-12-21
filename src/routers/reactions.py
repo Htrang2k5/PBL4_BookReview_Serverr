@@ -158,12 +158,12 @@ def get_type_reaction_by_post_id_and_token(db: DBSession, post_id: int, Stoken: 
 
 # routers
 @router.get('/post/{post_id}')
-async def api_get_reactions_by_post_id(post_id: int, db: DBSession):
+def api_get_reactions_by_post_id(post_id: int, db: DBSession):
     return get_reactions_by_post_id(db, post_id)
 
 
 @router.get('/post/{post_id}/count/{reaction_type}')
-async def api_get_count_reactions_by_type_and_post_id(
+def api_get_count_reactions_by_type_and_post_id(
     post_id: int, reaction_type: str, db: DBSession
 ):
     return get_count_reactions_by_type_and_post_id(db, post_id, reaction_type)
@@ -175,22 +175,22 @@ async def api_create_reaction(post_id: int, session_token: str, reaction_type: s
 
 
 @router.delete('/{reaction_id}', response_model=str)
-async def api_delete_reaction(reaction_id: int, session_token: str, db: DBSession):
+def api_delete_reaction(reaction_id: int, session_token: str, db: DBSession):
     return delete_reaction(db, reaction_id, session_token)
 
 
 @router.get('/post/{post_id}/status', response_model=str)
-async def api_get_reactions_by_post_id_and_token(post_id: int, session_token: str, db: DBSession):
+def api_get_reactions_by_post_id_and_token(post_id: int, session_token: str, db: DBSession):
     return get_reactions_by_post_id_and_token(db, post_id, session_token)
 
 
 @router.get('/user/{user_id}/likes', response_model=list[int])
-async def api_get_all_like_posts_by_user_id(session_token: str, db: DBSession):
+def api_get_all_like_posts_by_user_id(session_token: str, db: DBSession):
     return get_all_like_posts_by_token(db, session_token)
 
 
 @router.get('/post/{post_id}/type', response_model=str)
-async def api_get_type_reaction_by_post_id_and_token(
+def api_get_type_reaction_by_post_id_and_token(
     post_id: int, session_token: str, db: DBSession
 ):
     return get_type_reaction_by_post_id_and_token(db, post_id, session_token)
