@@ -104,7 +104,7 @@ async def create_report(db: DBSession, token: str, post_id: int, reason: str):
                 # tao notification recipient
                 # lay author_id de lay user_id
                 author = db.query(Author).filter(Author.id == post.author_id).first()
-                payload = {'title': title, 'message': message}
+                payload = {'type': title, 'message': message}
                 if author:
                     notification_recipient = NotificationRecipient(
                         notification_id=notification.id,

@@ -138,7 +138,7 @@ async def api_create_comment(post_id: int, Stoken: str, content: str, db: DBSess
         comment, post_id, user_id = create_comment(db, post_id, Stoken, content)
         # websocket real-time notification can be sent here
         payload_ws = {
-            'title': 'New Comment on Your Post',
+            'type': 'New Comment on Your Post',
             'message': f'Your post with ID {post_id} has a new comment.',
         }
         await manager.send_notification(user_id, payload_ws)

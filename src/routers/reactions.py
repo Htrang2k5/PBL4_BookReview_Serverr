@@ -98,7 +98,7 @@ async def create_reaction(db: DBSession, post_id: int, Stoken: str, reaction_typ
                 db.refresh(notification_recipient)
                 # websocket real-time notification can be sent here
                 payload_ws = {
-                    'title': 'New Like Received',
+                    'type': 'New Like Received',
                     'message': f'Your post with ID {post_id} has received a new like.',
                 }
                 await manager.send_notification(author.user_id, payload_ws)
@@ -163,9 +163,7 @@ def api_get_reactions_by_post_id(post_id: int, db: DBSession):
 
 
 @router.get('/post/{post_id}/count/{reaction_type}')
-def api_get_count_reactions_by_type_and_post_id(
-    post_id: int, reaction_type: str, db: DBSession
-):
+def api_get_count_reactions_by_type_and_post_id(post_id: int, reaction_type: str, db: DBSession):
     return get_count_reactions_by_type_and_post_id(db, post_id, reaction_type)
 
 
@@ -190,7 +188,5 @@ def api_get_all_like_posts_by_user_id(session_token: str, db: DBSession):
 
 
 @router.get('/post/{post_id}/type', response_model=str)
-def api_get_type_reaction_by_post_id_and_token(
-    post_id: int, session_token: str, db: DBSession
-):
+def api_get_type_reaction_by_post_id_and_token(post_id: int, session_token: str, db: DBSession):
     return get_type_reaction_by_post_id_and_token(db, post_id, session_token)
