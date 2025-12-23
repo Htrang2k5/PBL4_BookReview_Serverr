@@ -18,9 +18,7 @@ from sqlalchemy.orm import DeclarativeBase, mapped_column, relationship
 
 class Base(DeclarativeBase):
     created_at = mapped_column(DateTime(timezone=True), default=func.now())
-    updated_at = mapped_column(
-        DateTime(timezone=True), default=func.now(), onupdate=func.now()
-    )
+    updated_at = mapped_column(DateTime(timezone=True), default=func.now(), onupdate=func.now())
 
 
 users_follow_authors = Table(
@@ -35,13 +33,9 @@ users_follow_authors = Table(
 class User(Base):
     __tablename__ = 'users'
 
-    id = mapped_column(
-        Integer, primary_key=True, autoincrement=True, index=True
-    )
+    id = mapped_column(Integer, primary_key=True, autoincrement=True, index=True)
     cover_url = mapped_column(String(256), nullable=True)
-    username = mapped_column(
-        String(50), unique=True, nullable=False, index=True
-    )
+    username = mapped_column(String(50), unique=True, nullable=False, index=True)
     email = mapped_column(String(100), unique=True, nullable=False, index=True)
     password = mapped_column(String(128), nullable=False)
     phone_number = mapped_column(String(16), nullable=True)
@@ -98,9 +92,7 @@ class User(Base):
 class Author(Base):
     __tablename__ = 'authors'
 
-    id = mapped_column(
-        Integer, primary_key=True, autoincrement=True, index=True
-    )
+    id = mapped_column(Integer, primary_key=True, autoincrement=True, index=True)
     pen_name = mapped_column(String(128), unique=True, index=True)
     bio = mapped_column(Text(255), nullable=True)
 
@@ -140,22 +132,16 @@ class RequestStatus(enum.Enum):
 class Post(Base):
     __tablename__ = 'posts'
 
-    id = mapped_column(
-        Integer, primary_key=True, autoincrement=True, index=True
-    )
+    id = mapped_column(Integer, primary_key=True, autoincrement=True, index=True)
     cover_url = mapped_column(String(256), nullable=True)
     title = mapped_column(String(256), nullable=False)
     content = mapped_column(Text(65000), nullable=False)
     credit = mapped_column(String(256), nullable=True)
-    status = mapped_column(
-        Enum(RequestStatus), default=RequestStatus.PENDING, nullable=False
-    )
+    status = mapped_column(Enum(RequestStatus), default=RequestStatus.PENDING, nullable=False)
     sale_url = mapped_column(String(256), nullable=True)
 
     # Foreign keys
-    author_id = mapped_column(
-        Integer, ForeignKey('authors.id', ondelete='CASCADE'), nullable=True
-    )
+    author_id = mapped_column(Integer, ForeignKey('authors.id', ondelete='CASCADE'), nullable=True)
 
     # Relationships
     author = relationship(
@@ -184,18 +170,12 @@ class Post(Base):
 class Comment(Base):
     __tablename__ = 'comments'
 
-    id = mapped_column(
-        Integer, primary_key=True, autoincrement=True, index=True
-    )
+    id = mapped_column(Integer, primary_key=True, autoincrement=True, index=True)
     content = mapped_column(Text(512), nullable=False)
 
     # Foreign keys
-    user_id = mapped_column(
-        Integer, ForeignKey('users.id', ondelete='CASCADE'), nullable=False
-    )
-    post_id = mapped_column(
-        Integer, ForeignKey('posts.id', ondelete='CASCADE'), nullable=False
-    )
+    user_id = mapped_column(Integer, ForeignKey('users.id', ondelete='CASCADE'), nullable=False)
+    post_id = mapped_column(Integer, ForeignKey('posts.id', ondelete='CASCADE'), nullable=False)
 
     # Relationships
     user = relationship('User', back_populates='comments')
@@ -210,18 +190,12 @@ class ReactionType(enum.Enum):
 class Reaction(Base):
     __tablename__ = 'reactions'
 
-    id = mapped_column(
-        Integer, primary_key=True, autoincrement=True, index=True
-    )
+    id = mapped_column(Integer, primary_key=True, autoincrement=True, index=True)
     type = mapped_column(Enum(ReactionType), nullable=False)
 
     # Foreign keys
-    user_id = mapped_column(
-        Integer, ForeignKey('users.id', ondelete='CASCADE'), nullable=False
-    )
-    post_id = mapped_column(
-        Integer, ForeignKey('posts.id', ondelete='CASCADE'), nullable=False
-    )
+    user_id = mapped_column(Integer, ForeignKey('users.id', ondelete='CASCADE'), nullable=False)
+    post_id = mapped_column(Integer, ForeignKey('posts.id', ondelete='CASCADE'), nullable=False)
 
     # Relationships
     user = relationship('User', back_populates='reactions')
@@ -231,21 +205,13 @@ class Reaction(Base):
 class PostReport(Base):
     __tablename__ = 'post_reports'
 
-    id = mapped_column(
-        Integer, primary_key=True, autoincrement=True, index=True
-    )
+    id = mapped_column(Integer, primary_key=True, autoincrement=True, index=True)
     reason = mapped_column(Text(512), nullable=False)
-    status = mapped_column(
-        Enum(RequestStatus), default=RequestStatus.PENDING, nullable=False
-    )
+    status = mapped_column(Enum(RequestStatus), default=RequestStatus.PENDING, nullable=False)
 
     # Foreign keys
-    user_id = mapped_column(
-        Integer, ForeignKey('users.id', ondelete='CASCADE'), nullable=False
-    )
-    post_id = mapped_column(
-        Integer, ForeignKey('posts.id', ondelete='CASCADE'), nullable=True
-    )
+    user_id = mapped_column(Integer, ForeignKey('users.id', ondelete='CASCADE'), nullable=False)
+    post_id = mapped_column(Integer, ForeignKey('posts.id', ondelete='CASCADE'), nullable=True)
 
     # Relationships
     user = relationship('User', back_populates='post_reports')
@@ -255,9 +221,7 @@ class PostReport(Base):
 class Notification(Base):
     __tablename__ = 'notifications'
 
-    id = mapped_column(
-        Integer, primary_key=True, autoincrement=True, index=True
-    )
+    id = mapped_column(Integer, primary_key=True, autoincrement=True, index=True)
     title = mapped_column(String(128), nullable=False)
     message = mapped_column(Text(512), nullable=False)
 
@@ -272,17 +236,13 @@ class Notification(Base):
 class NotificationRecipient(Base):
     __tablename__ = 'notification_recipients'
 
-    id = mapped_column(
-        Integer, primary_key=True, autoincrement=True, index=True
-    )
+    id = mapped_column(Integer, primary_key=True, autoincrement=True, index=True)
     notification_id = mapped_column(
         Integer,
         ForeignKey('notifications.id', ondelete='CASCADE'),
         nullable=False,
     )
-    user_id = mapped_column(
-        Integer, ForeignKey('users.id', ondelete='CASCADE'), nullable=False
-    )
+    user_id = mapped_column(Integer, ForeignKey('users.id', ondelete='CASCADE'), nullable=False)
     is_read = mapped_column(Boolean, default=False, nullable=False)
 
     # Relationships
@@ -293,12 +253,8 @@ class NotificationRecipient(Base):
 class session(Base):
     __tablename__ = 'sessions'
 
-    id = mapped_column(
-        Integer, primary_key=True, autoincrement=True, index=True
-    )
-    user_id = mapped_column(
-        Integer, ForeignKey('users.id', ondelete='CASCADE'), nullable=False
-    )
+    id = mapped_column(Integer, primary_key=True, autoincrement=True, index=True)
+    user_id = mapped_column(Integer, ForeignKey('users.id', ondelete='CASCADE'), nullable=False)
     token = mapped_column(String(256), unique=True, nullable=False)
     expires_at = mapped_column(DateTime(timezone=True), nullable=False)
 

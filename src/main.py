@@ -1,6 +1,7 @@
 import os
 
 from fastapi import FastAPI, Request, Response
+from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 
 from src.routers import follows, notifications
@@ -76,3 +77,11 @@ app.mount('/static', StaticFiles(directory=STATIC_DIR), name='static')
 #         response.headers['Expires'] = '0'
 
 #     return response
+
+# app.add_middleware(
+#     CORSMiddleware,
+#     allow_origins=['*'],  # ✅ cho web chạy ngay
+#     allow_credentials=False,
+#     allow_methods=['*'],
+#     allow_headers=['*'],
+# )
